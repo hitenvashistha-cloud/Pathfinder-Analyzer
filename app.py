@@ -251,10 +251,10 @@ with col2:
                             color = 'green'
                         elif (i, j) == st.session_state.end:
                             color = 'red'
-                        elif (i, j) in visited:
-                            color = 'lightblue'
                         elif path and (i, j) in path:
                             color = 'yellow'
+                        elif (i, j) in visited:
+                            color = 'lightblue'
                         
                         rect = Rectangle((j, rows-1-i), 1, 1, facecolor=color, edgecolor='gray')
                         ax2.add_patch(rect)
