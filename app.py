@@ -9,7 +9,7 @@ from collections import defaultdict
 from algorithms.dijkstra import Dijkstra
 from algorithms.a_star import AStar
 from algorithms.bfs import BFS
-from algorithms.bellman_ford import BellmanFord
+from algorithms.dfs import DFS
 
 # Import AI model
 from ai_models.algorithm_predictor import AlgorithmPredictor
@@ -31,25 +31,25 @@ if 'start' not in st.session_state:
 if 'end' not in st.session_state:
     st.session_state.end = (14, 14)
 if 'draw_mode' not in st.session_state:
-    st.session_state.draw_mode = 'wall'  # wall, start, end
+    st.session_state.draw_mode = 'wall'
 if 'ai_predictor' not in st.session_state:
     st.session_state.ai_predictor = AlgorithmPredictor()
 
-st.title("🤖  Pathfinding Visualizer")
+st.title("AI Pathfinding Visualizer")
 st.markdown("""
     This application demonstrates various pathfinding algorithms with AI-powered 
     algorithm selection. Click on cells to add walls, then run algorithms to find 
-    the shortest path!
+    the shortest path.
 """)
 
 # Sidebar controls
 with st.sidebar:
-    st.header("⚙️ Controls")
+    st.header("Controls")
     
     # Algorithm selection
     algorithm = st.selectbox(
         "Select Algorithm",
-        ["Dijkstra", "A*", "BFS", "Bellman-Ford", "🤖 AI Recommended"]
+        ["Dijkstra", "A*", "BFS", "DFS", "AI Recommended"]
     )
     
     st.divider()
@@ -60,14 +60,14 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🔄 Reset Grid"):
+        if st.button("Reset Grid"):
             st.session_state.grid = create_empty_grid(grid_size, grid_size)
             st.session_state.start = (0, 0)
             st.session_state.end = (grid_size-1, grid_size-1)
             st.rerun()
     
     with col2:
-        if st.button("🎲 Random Maze"):
+        if st.button("Random Maze"):
             st.session_state.grid = create_empty_grid(grid_size, grid_size)
             st.session_state.grid = generate_random_maze(st.session_state.grid, density=0.3)
             st.rerun()
@@ -78,28 +78,44 @@ with st.sidebar:
     st.subheader("Draw Mode")
     draw_mode = st.radio(
         "Click on cells to:",
-        ["🚧 Add Walls", "🏁 Set Start", "🏆 Set End"],
+        ["Add Walls", "Set Start", "Set End"],
         horizontal=True
     )
     
-    if draw_mode == "🚧 Add Walls":
+    if draw_mode == "Add Walls":
         st.session_state.draw_mode = 'wall'
-    elif draw_mode == "🏁 Set Start":
+    elif draw_mode == "Set Start":
         st.session_state.draw_mode = 'start'
     else:
         st.session_state.draw_mode = 'end'
     
     st.divider()
     
+    # Algorithm info section
+    st.subheader("Algorithm Information")
+    
+    if algorithm == "Dijkstra":
+        st.info("Guarantees shortest path. Time: O((V+E) log V)")
+    elif algorithm == "A*":
+        st.info("Uses heuristic for faster search. Time: O(b^d)")
+    elif algorithm == "BFS":
+        st.info("Shortest path in unweighted grids. Time: O(V+E)")
+    elif algorithm == "DFS":
+        st.info("Finds any path quickly. NOT guaranteed shortest. Time: O(V+E)")
+    elif algorithm == "AI Recommended":
+        st.info("AI predicts best algorithm based on grid features")
+    
+    st.divider()
+    
     # Performance metrics display
-    st.subheader("📊 Performance Metrics")
+    st.subheader("Performance Metrics")
     metrics_placeholder = st.empty()
 
 # Main area - create two columns
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader("🗺️ Grid Visualization")
+    st.subheader("Grid Visualization")
     
     # Create matplotlib figure
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -111,7 +127,7 @@ with col1:
     for i in range(rows):
         for j in range(cols):
             color = 'white'
-            if st.session_state.grid[i, j] == 1:  # Wall
+            if st.session_state.grid[i, j] == 1:
                 color = 'black'
             elif (i, j) == st.session_state.start:
                 color = 'green'
@@ -130,11 +146,7 @@ with col1:
     # Display the grid
     grid_display = st.pyplot(fig)
     
-    # Handle cell clicks (using session state and rerun)
-    # Note: Streamlit doesn't support direct click events on matplotlib
-    # We'll use buttons for cell selection instead
-    
-    # Alternative: Create clickable grid using buttons
+    # Create clickable grid using buttons
     st.subheader("Click to Edit Grid")
     cols_per_row = 8
     for i in range(rows):
@@ -144,13 +156,13 @@ with col1:
             cell_value = st.session_state.grid[i, j]
             
             if (i, j) == st.session_state.start:
-                label = "🏁"
+                label = "S"
             elif (i, j) == st.session_state.end:
-                label = "🏆"
+                label = "E"
             elif cell_value == 1:
-                label = "🧱"
+                label = "#"
             else:
-                label = "⬜"
+                label = "."
             
             if button_cols[col_idx].button(label, key=f"cell_{i}_{j}", use_container_width=True):
                 if st.session_state.draw_mode == 'wall':
@@ -162,7 +174,7 @@ with col1:
                 st.rerun()
 
 with col2:
-    st.subheader(" Run Algorithms")
+    st.subheader("Run Algorithms")
     
     # Run button
     if st.button("Run Algorithm", type="primary", use_container_width=True):
@@ -174,22 +186,22 @@ with col2:
         
         # Check if start and end are not walls
         if st.session_state.grid[st.session_state.start] == 1:
-            st.error(" Start position is a wall! Please set start on empty cell.")
+            st.error("Start position is a wall. Please set start on empty cell.")
         elif st.session_state.grid[st.session_state.end] == 1:
-            st.error(" End position is a wall! Please set end on empty cell.")
+            st.error("End position is a wall. Please set end on empty cell.")
         else:
             # Select algorithm
-            if algorithm == " AI Recommended":
-                with st.spinner(" AI analyzing grid..."):
+            if algorithm == "AI Recommended":
+                with st.spinner("AI analyzing grid..."):
                     prediction = st.session_state.ai_predictor.predict(
                         st.session_state.grid, 
                         st.session_state.start, 
                         st.session_state.end
                     )
-                    st.info(f" AI recommends: **{prediction['algorithm']}** (Confidence: {prediction['confidence']:.1%})")
+                    st.info(f"AI recommends: {prediction['algorithm']} (Confidence: {prediction['confidence']:.1%})")
                     
                     # Show probability distribution
-                    st.write("**Algorithm probabilities:**")
+                    st.write("Algorithm probabilities:")
                     for algo, prob in prediction['probabilities'].items():
                         st.progress(prob, text=f"{algo}: {prob:.1%}")
                     
@@ -210,8 +222,8 @@ with col2:
                 elif selected_algo == "BFS":
                     algo = BFS(st.session_state.grid)
                     path, visited, distance = algo.find_path(st.session_state.start, st.session_state.end)
-                elif selected_algo == "Bellman-Ford":
-                    algo = BellmanFord(st.session_state.grid)
+                elif selected_algo == "DFS":
+                    algo = DFS(st.session_state.grid)
                     path, visited, distance = algo.find_path(st.session_state.start, st.session_state.end)
                 else:
                     st.error("Unknown algorithm")
@@ -224,21 +236,25 @@ with col2:
             
             # Display results
             if path:
+                # Special note for DFS
+                if selected_algo == "DFS":
+                    st.info("Note: DFS finds A path, but is NOT guaranteed to be the shortest path.")
+                
                 st.success(f"Path found! Length: {distance} steps")
                 st.metric("Path Length", distance)
                 st.metric("Execution Time", f"{execution_time:.4f} seconds")
                 st.metric("Nodes Visited", len(visited))
                 
                 # Show complexity
-                st.write("**Time Complexity:**")
+                st.write("Time Complexity:")
                 if selected_algo == "Dijkstra":
                     st.code("O((V + E) log V) where V = vertices, E = edges")
                 elif selected_algo == "A*":
                     st.code("O(b^d) where b = branching factor, d = depth")
                 elif selected_algo == "BFS":
                     st.code("O(V + E) for unweighted graphs")
-                elif selected_algo == "Bellman-Ford":
-                    st.code("O(VE) where V = vertices, E = edges")
+                elif selected_algo == "DFS":
+                    st.code("O(V + E) for graph traversal")
                 
                 # Visualize path in a new figure
                 fig2, ax2 = plt.subplots(figsize=(8, 8))
@@ -267,7 +283,7 @@ with col2:
                 
                 st.pyplot(fig2)
             else:
-                st.error("❌ No path exists from start to end!")
+                st.error("No path exists from start to end.")
     
     st.divider()
     
@@ -280,7 +296,7 @@ with col2:
             'Dijkstra': Dijkstra(st.session_state.grid),
             'A*': AStar(st.session_state.grid),
             'BFS': BFS(st.session_state.grid),
-            'Bellman-Ford': BellmanFord(st.session_state.grid)
+            'DFS': DFS(st.session_state.grid)
         }
         
         results = []
@@ -294,14 +310,16 @@ with col2:
                 'Path Length': len(path) - 1 if path else 'No path',
                 'Nodes Visited': len(visited),
                 'Time (s)': f"{exec_time:.4f}",
-                'Path Found': 'Path exist' if path else 'Path not exist'
+                'Path Found': 'Yes' if path else 'No'
             })
         
         st.table(results)
+        
+        st.info("Note: DFS finds A path but NOT guaranteed shortest. BFS/Dijkstra/A* guarantee shortest path.")
 
 # Footer
 st.divider()
 st.markdown("""
-    **Educational Project** | Algorithms: Dijkstra, A*, BFS, Bellman-Ford | 
-    ** AI Features**: Algorithm recommendation using Random Forest Classifier
+    Educational Project | Algorithms: Dijkstra, A*, BFS, DFS | 
+    AI Features: Algorithm recommendation using Random Forest Classifier
 """)
